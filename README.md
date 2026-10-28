@@ -140,6 +140,20 @@ Native protocol changes, closed sessions, inbound hold/refuse settings and clien
 permission prompts can prevent delivery. The bridge does not change those
 settings. Idle Codex wake-up was verified for the client version listed above.
 
+Closing a Codex window does not close its thread right away. The app-server
+keeps a thread loaded until it has had no subscribers and no activity for 30
+minutes ([app-server docs](https://learn.chatgpt.com/docs/app-server#unsubscribe-from-a-loaded-thread)).
+During that window the thread is still listed, and a message sent to it runs a
+full turn with nobody watching. That was verified live on Codex 0.165.0. Under
+the documented rule, that turn counts as activity and restarts the 30 minutes. The bridge cannot tell
+whether a window is attached: the protocol exposes no subscriber count. Discovery
+uses `thread/read`, which does not load a thread or extend the window; a test
+thread unloaded 30 minutes after creation despite repeated discovery. A loaded
+thread's MCP server processes, including this bridge, appear to stay alive until
+it unloads; separate threads were observed using separate bridge processes. Community reports describe a top-level
+`thread_unload_delay_secs` in `~/.codex/config.toml` that shortens the window
+after an app-server restart; OpenAI does not document it.
+
 Codex delivery currently uses the supported `codex queue --message` CLI. Message
 text appears in `/proc/<pid>/cmdline` while that command runs; other local users
 can read it unless `/proc` access is restricted, for example with `hidepid`.
