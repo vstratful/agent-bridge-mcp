@@ -44,22 +44,36 @@ Doctor reports PASS, WARN, FAIL or SKIPPED and fixes for non-passing checks; any
 with status 1. It checks metadata and configuration without sending messages or
 creating bridge files. Unsupported registration queries are SKIPPED and do not affect the exit code.
 
-## First use
+## Using it
 
-Type prompts like these in Claude or Codex:
+You don't call the bridge yourself. Talk to Claude or Codex as you normally would
+and ask it to message another session; the agent finds the session and sends the
+message with the bridge's tools. For example, you might type:
 
-- “List my agent-bridge sessions.”
-- “Tell the Codex session working on <repo> that the API changed.”
-- “Ask the Claude session reviewing <repo> for its findings.”
+> List my other Claude and Codex sessions.
 
-Use exact session IDs when names are ambiguous. Codex must always pass its full
-sender ID to `send_message` and recipient ID to `read_messages`: `codex:` followed
-by `CODEX_THREAD_ID` from its shell environment. Claude normally infers its identity. Ask for approval before messaging whenever the user requires it.
+> Tell the Codex session working on billing-api that the response schema changed.
 
-`queued` means Codex accepted the queue command. `submitted` means Claude's socket
-accepted the write; its receiver may deliver, hold or refuse it without telling the
-sender. Neither proves an agent read the message. `unknown` means delivery may have
-happened: reuse the same message ID and never automatically retry with a new ID.
+> Ask the Claude session reviewing the auth PR for its findings.
+
+Sessions are known by their names: a Claude session's name (set with `/rename` or
+chosen automatically) and a Codex thread's title. If two share a name, the agent
+uses the full session ID instead.
+
+The message appears in the other session's conversation with a preview such as
+`From billing-api (codex): The response schema changed.` The receiving agent treats
+it as a message from another agent, not from you, so it may check with you before
+acting on it. To answer, ask that agent to reply; the reply comes back the same way.
+An idle session picks the message up straight away. A busy Claude reads it between
+steps; a busy Codex gets it when its current turn finishes.
+
+The sending agent reports one of these:
+
+- **queued** (to Codex) or **submitted** (to Claude): handed over. Neither means the
+  other agent has read it yet, and a Claude session can be set to hold or refuse
+  messages without the sender being told.
+- **unknown**: it may or may not have been delivered. The agent won't resend it
+  under a new ID, to avoid a duplicate; check the other session.
 
 ## Security and limits
 

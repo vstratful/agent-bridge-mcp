@@ -105,7 +105,10 @@ explicitly. `AGENT_BRIDGE_SENDER_ID` overrides inference outside Codex MCP clien
 Codex MCP clients always have `inferred_sender: null`: the daemon starts the
 bridge without a thread ID and may share it across threads, so neither
 `CODEX_THREAD_ID` nor a process-wide override identifies the calling thread. Codex clients must pass `sender` to
-`send_message` and `recipient` to `read_messages` on every call.
+`send_message` and `recipient` to `read_messages` on every call. A Codex session's
+own ID is `codex:` followed by `CODEX_THREAD_ID` from its shell environment, which
+Codex does set for shell commands (verified on 0.165.0). The tool descriptions tell
+Codex this; a cold first-use test found its ID and sent correctly.
 The CLI has no MCP handshake; use `--from` for sending and `--to` for inbox reads,
 or set `AGENT_BRIDGE_SENDER_ID` for that CLI invocation.
 Reconnect the MCP server after rebuilding so existing clients load these changes.
