@@ -40,9 +40,7 @@ export function claudeFrame(text: string, id: string, replyAddress: string): z.i
 export function sendClaudeFrame(path: string, frame: z.infer<typeof ClaudeFrame>, timeoutMs: number): Promise<Delivery> {
   return new Promise(resolve => {
     const socket = createConnection(path);
-    socket.setEncoding('utf8');
-    let written = false;
-    let buffer = '';
+    let connected = false;
     let settled = false;
     const finish = (result: Delivery) => {
       if (settled) return;
@@ -51,36 +49,18 @@ export function sendClaudeFrame(path: string, frame: z.infer<typeof ClaudeFrame>
       socket.destroy();
       resolve(result);
     };
-    const unknown = () => finish({ state: written ? 'submitted' : 'failed', detail: written
-      ? 'Claude socket accepted the write; agent receipt and inbound approval are unconfirmed. Do not retry automatically.'
-      : 'Could not write to the Claude inbox.' });
-    const timer = setTimeout(unknown, timeoutMs);
+    const interrupted = () => finish(connected
+      ? { state: 'unknown', detail: 'Claude socket connected but the write did not confirm; the message may have been delivered. Do not retry automatically.' }
+      : { state: 'failed', detail: 'Could not write to the Claude inbox.' });
+    const timer = setTimeout(interrupted, timeoutMs);
     socket.on('connect', () => {
+      connected = true;
       socket.write(`${JSON.stringify(frame)}\n`, error => {
-        if (error) return unknown();
-        written = true;
+        if (error) return interrupted();
+        finish({ state: 'submitted', detail: 'Claude socket accepted the write. The receiver may have delivered, held, or refused it; Claude Code sends no confirmation either way. Do not retry automatically.' });
       });
     });
-    socket.on('data', data => {
-      buffer += data.toString('utf8');
-      if (buffer.length > 64_000) return unknown();
-      // Only interpret receipts for this message. Raw protocol receipts are never
-      // treated as evidence that the receiving model read or acted on the text.
-      for (const line of buffer.split('\n').slice(0, -1)) {
-        try {
-          const ack = JSON.parse(line);
-          if (ack.msg_id !== frame.msg_id) continue;
-          if (ack.type === 'ack') {
-            finish({ state: ack.wasHeld === true ? 'held' : 'submitted', detail: ack.wasHeld === true
-              ? 'Claude reports the message is held for inbound approval.'
-              : 'Claude acknowledged the socket frame. Agent receipt and execution are not confirmed.' });
-            return;
-          }
-        } catch { /* Wait for completion or a bounded timeout. */ }
-      }
-      buffer = buffer.slice(buffer.lastIndexOf('\n') + 1);
-    });
-    socket.on('error', unknown);
-    socket.on('close', unknown);
+    socket.on('error', interrupted);
+    socket.on('close', interrupted);
   });
 }

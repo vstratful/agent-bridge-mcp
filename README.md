@@ -25,9 +25,12 @@ Verified with Claude Code 2.1.312 and Codex CLI 0.165.0:
 - Codex's daemon starts the bridge with a cleaned environment that has no thread
   ID, and the bridge process belongs to the daemon rather than one thread. Codex
   calls must pass their sender explicitly.
+- Claude inbound accept, hold, and refuse behavior: in all three cases a live
+  byte-logging probe received no acknowledgement, notice, or connection close.
+  The sender cannot distinguish these outcomes.
 
-Inbound hold/refuse behavior remains unverified. Fixture tests cover discovery
-races, wrapper handling, safe stale-socket cleanup, retention, and transport
+Fixture tests cover discovery races, message previews, wrapper handling,
+safe stale-socket cleanup, retention, and transport
 failures. Reconnect MCP processes after rebuilding before repeating live checks.
 
 ## Build and test
@@ -130,7 +133,9 @@ Names and sender IDs are local routing labels, not authenticated identities.
   does not contain native messages that bypass the bridge.
 
 `queued` means Codex accepted its queue command. `submitted` means the Claude
-socket write completed (or a recognized frame acknowledgement arrived).
+socket accepted the write; the receiver may have delivered, held, or refused
+the message, and the sender cannot tell. The bridge closes the socket after the
+write completes because Claude Code sends no confirmation either way.
 Neither means the agent read or executed the message. `unknown` means a send may
 already have happened; do not automatically retry it with a new ID. A `sending`
 record left by a crashed bridge is also uncertain. Failed and uncertain message
@@ -139,6 +144,19 @@ IDs are retained to prevent duplicate sends until their retention period expires
 Native protocol changes, closed sessions, inbound hold/refuse settings and client
 permission prompts can prevent delivery. The bridge does not change those
 settings. Idle Codex wake-up was verified for the client version listed above.
+
+Each message starts with `From <name> (<provider>): <excerpt>`, using the
+discovered sender name and provider (`claude` or `codex`). When no name is
+available, the full session ID replaces the name and provider. The excerpt uses
+the first non-empty line, capped at 120 characters. The header also
+identifies the full sender ID and reply tool; the original body follows unchanged.
+Claude uses the first line in its message and approval previews. With no
+`crossSessionInbound` setting, a receiver in `bypassPermissions` holds every
+bridge message for approval because bridge frames declare no permission class
+([Claude inbound controls](https://code.claude.com/docs/en/cross-session-messaging#control-inbound-messages)).
+The receiving Claude also shows the sending process's verified PID. Sender IDs
+and names in the envelope are claims; the verified PID is the stronger signal
+of which process sent the message.
 
 Closing a Codex window does not close its thread right away. The app-server
 keeps a thread loaded until it has had no subscribers and no activity for 30
@@ -220,7 +238,7 @@ node scripts/live-roundtrip.mjs --to 'claude:<uuid>' --from 'codex:<uuid>' --con
 
 The script sends exactly one message:
 
-> Agent bridge connection test. Please reply exactly BRIDGE_OK using the agent-bridge MCP send_message tool to the session ID in Reply to above. No project work is requested.
+> Agent bridge connection test. Please reply exactly BRIDGE_OK using the agent-bridge MCP send_message tool to the sender session ID in the bridge header above. No project work is requested.
 
 It keeps the MCP process alive for up to 45 seconds to receive the reply. It
 never retries a send automatically. A recorded queued reply must also be checked

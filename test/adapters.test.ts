@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { chmod, mkdir, readFile, symlink, unlink, writeFile } from 'node:fs/promises';
 import { createServer as createNetServer } from 'node:net';
+import type { Socket } from 'node:net';
 import { createServer as createHttpServer } from 'node:http';
 import { join, relative } from 'node:path';
 import { WebSocketServer } from 'ws';
@@ -35,16 +36,34 @@ test('Claude discovery checks process starttime and ignores stale or symlinked r
   assert.equal((await adapter.discover()).sessions.length, 0);
 });
 
-test('Claude transport writes captured native frame and reports unconfirmed receipt on close or timeout', async t => {
+test('Claude transport submits and closes after writing without waiting for a silent receiver', { timeout: 2000 }, async t => {
   const f = await fixture(); t.after(f.cleanup);
   const path = join(f.dir, 'claude.sock');
-  let frame: unknown;
-  const server = createNetServer(socket => socket.on('data', data => { frame = JSON.parse(data.toString()); socket.end(); }));
+  const received = Promise.withResolvers<unknown>();
+  const closed = Promise.withResolvers<void>();
+  const peers = new Set<Socket>();
+  // Deliberately send no acknowledgement and never initiate a close.
+  const server = createNetServer(socket => {
+    peers.add(socket);
+    let buffer = '';
+    socket.on('data', data => {
+      buffer += data.toString();
+      if (buffer.includes('\n')) received.resolve(JSON.parse(buffer.slice(0, buffer.indexOf('\n'))));
+    });
+    socket.once('close', () => { peers.delete(socket); closed.resolve(); });
+  });
   await new Promise<void>(resolve => server.listen(path, resolve));
-  t.after(() => new Promise<void>(resolve => server.close(() => resolve())));
+  t.after(() => new Promise<void>(resolve => {
+    for (const socket of peers) socket.destroy();
+    server.close(() => resolve());
+  }));
   const wire = claudeFrame('text', 'fixed-id', 'uds:/fixture/reply.sock');
-  assert.equal((await sendClaudeFrame(path, wire, 100)).state, 'submitted');
-  assert.deepEqual(frame, wire);
+  assert.deepEqual(await sendClaudeFrame(path, wire, 10_000), {
+    state: 'submitted',
+    detail: 'Claude socket accepted the write. The receiver may have delivered, held, or refused it; Claude Code sends no confirmation either way. Do not retry automatically.',
+  });
+  assert.deepEqual(await received.promise, wire);
+  await closed.promise;
   assert.equal((await sendClaudeFrame(join(f.dir, 'missing.sock'), wire, 50)).state, 'failed');
 });
 

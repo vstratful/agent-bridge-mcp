@@ -17,7 +17,7 @@ export interface Discovery {
   warnings: string[];
 }
 
-export type MessageState = 'pending' | 'sending' | 'queued' | 'submitted' | 'held' | 'refused' | 'unknown' | 'failed';
+export type MessageState = 'pending' | 'sending' | 'queued' | 'submitted' | 'unknown' | 'failed';
 
 export interface Message {
   id: string;

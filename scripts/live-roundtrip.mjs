@@ -13,7 +13,7 @@ if (!values.confirmed || !values.to || !values.from) {
   console.error('Requires --to <Claude full ID> --from <Codex full ID> --confirmed after the user approves the live test.');
   process.exit(1);
 }
-const text = 'Agent bridge connection test. Please reply exactly BRIDGE_OK using the agent-bridge MCP send_message tool to the session ID in Reply to above. No project work is requested.';
+const text = 'Agent bridge connection test. Please reply exactly BRIDGE_OK using the agent-bridge MCP send_message tool to the sender session ID in the bridge header above. No project work is requested.';
 const id = `bridge-smoke-${randomUUID()}`;
 const since = new Date().toISOString();
 const transport = new StdioClientTransport({
