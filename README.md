@@ -14,10 +14,10 @@ client updates. Run `agent-bridge-mcp doctor` first when something stops working
 
 ## Install and connect
 
-The internal repository is private; replace `<org>` with your GitHub organization.
+The repository is private to the HostPapa GitHub organization; you need read access to it.
 
 ```sh
-npm pack git+ssh://git@github.com/<org>/agent-bridge-mcp.git
+npm pack git+ssh://git@github.com/hostpapa/agent-bridge-mcp.git
 npm install -g ./agent-bridge-mcp-*.tgz && rm ./agent-bridge-mcp-*.tgz
 ```
 
