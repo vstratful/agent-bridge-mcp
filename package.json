@@ -1,0 +1,31 @@
+{
+  "name": "agent-bridge-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local MCP messaging between existing Claude Code and Codex sessions",
+  "type": "module",
+  "bin": {
+    "agent-bridge-mcp": "dist/cli.js"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "test": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('.test-build', { recursive: true, force: true });\" && tsc -p tsconfig.test.json && node --test .test-build/test/*.test.js",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "ws": "8.22.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/ws": "8.18.2",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}

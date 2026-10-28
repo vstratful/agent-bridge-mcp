@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+.test-build/
+core
+core.*
+.env
+.env.*
+!.env.example
+.agent-bridge/
+*.log

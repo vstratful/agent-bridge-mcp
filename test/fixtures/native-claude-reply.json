@@ -1,0 +1,11 @@
+{
+  "msgV": 1,
+  "msg_id": "native-reply-fixture",
+  "type": "user",
+  "message": {
+    "role": "user",
+    "content": "<cross-session-message from=\"uds:/fixture/claude.sock\" hop-chain=\"fixture-hop\" from-name=\"fixture-claude\" from-mode=\"prompting\">\nBRIDGE_RAW_WRAPPER_FIXTURE\n</cross-session-message>"
+  },
+  "priority": "next",
+  "from": "uds:/fixture/claude.sock"
+}
