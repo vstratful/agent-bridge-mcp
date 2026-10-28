@@ -17,8 +17,12 @@ client updates. Run `agent-bridge-mcp doctor` first when something stops working
 The internal repository is private; replace `<org>` with your GitHub organization.
 
 ```sh
-npm install -g git+ssh://git@github.com/<org>/agent-bridge-mcp.git
+npm pack git+ssh://git@github.com/<org>/agent-bridge-mcp.git
+npm install -g ./agent-bridge-mcp-*.tgz && rm ./agent-bridge-mcp-*.tgz
 ```
+
+Don't use `npm install -g git+ssh://…` directly: npm's global git install fails to
+build the package (`tsc: not found`). Packing first builds it in a normal clone.
 
 Register in both clients using absolute paths:
 

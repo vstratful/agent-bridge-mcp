@@ -29,3 +29,10 @@ jobs:
             throw new Error('Package is missing dist/cli.js');
           }
           JS
+      - name: Install from git the way the README does
+        shell: bash
+        run: |
+          cd "$RUNNER_TEMP"
+          npm pack "git+file://$GITHUB_WORKSPACE#$GITHUB_SHA"
+          npm install -g ./agent-bridge-mcp-*.tgz --prefix "$RUNNER_TEMP/prefix"
+          "$RUNNER_TEMP/prefix/bin/agent-bridge-mcp" --help
