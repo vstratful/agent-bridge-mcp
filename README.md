@@ -53,8 +53,8 @@ Type prompts like these in Claude or Codex:
 - “Ask the Claude session reviewing <repo> for its findings.”
 
 Use exact session IDs when names are ambiguous. Codex must always pass its full
-sender ID to `send_message` and recipient ID to `read_messages`; Claude normally
-infers its identity. Ask for approval before messaging whenever the user requires it.
+sender ID to `send_message` and recipient ID to `read_messages`: `codex:` followed
+by `CODEX_THREAD_ID` from its shell environment. Claude normally infers its identity. Ask for approval before messaging whenever the user requires it.
 
 `queued` means Codex accepted the queue command. `submitted` means Claude's socket
 accepted the write; its receiver may deliver, hold or refuse it without telling the
