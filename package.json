@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Local MCP messaging between existing Claude Code and Codex sessions",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "agent-bridge-mcp": "dist/cli.js"

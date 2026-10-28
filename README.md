@@ -14,14 +14,14 @@ client updates. Run `agent-bridge-mcp doctor` first when something stops working
 
 ## Install and connect
 
-The repository is private to the HostPapa GitHub organization; you need read access to it.
+Install from GitHub; no account or SSH key is needed.
 
 ```sh
-npm pack git+ssh://git@github.com/hostpapa/agent-bridge-mcp.git
+npm pack git+https://github.com/vstratful/agent-bridge-mcp.git
 npm install -g ./agent-bridge-mcp-*.tgz && rm ./agent-bridge-mcp-*.tgz
 ```
 
-Don't use `npm install -g git+ssh://…` directly: npm's global git install fails to
+Don't use `npm install -g git+https://…` directly: npm's global git install fails to
 build the package (`tsc: not found`). Packing first builds it in a normal clone.
 
 Register in both clients using absolute paths:
@@ -102,3 +102,7 @@ npm uninstall -g agent-bridge-mcp
 
 Stop connected bridge processes before manually removing the configured state
 and runtime directories if you also want to delete retained messages and sockets.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
