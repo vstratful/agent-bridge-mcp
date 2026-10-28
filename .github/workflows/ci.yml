@@ -1,0 +1,31 @@
+name: CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      - name: Verify packaged CLI
+        shell: bash
+        run: |
+          npm pack --dry-run --json > "$RUNNER_TEMP/agent-bridge-pack.json"
+          node --input-type=module - "$RUNNER_TEMP/agent-bridge-pack.json" <<'JS'
+          import { readFileSync } from 'node:fs';
+          const [pack] = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+          if (!pack.files.some(file => file.path === 'dist/cli.js')) {
+            throw new Error('Package is missing dist/cli.js');
+          }
+          JS

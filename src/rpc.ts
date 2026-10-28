@@ -14,6 +14,7 @@ export class CodexRpc {
   private socket: WebSocket;
   private nextId = 1;
   private failure?: CodexConnectionError;
+  private initialization?: unknown;
   private pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>();
 
   private constructor(path: string, private timeoutMs: number) {
@@ -42,7 +43,7 @@ export class CodexRpc {
         rpc.socket.once('open', resolve);
         rpc.socket.once('error', reject);
       });
-      await rpc.call('initialize', { clientInfo: { name: 'agent_bridge_mcp', version: '0.1.0' }, capabilities: null });
+      rpc.initialization = await rpc.call('initialize', { clientInfo: { name: 'agent_bridge_mcp', version: '0.1.0' }, capabilities: null });
       rpc.socket.send(JSON.stringify({ method: 'initialized' }));
       return rpc;
     } catch (error) {
@@ -50,6 +51,8 @@ export class CodexRpc {
       throw error;
     }
   }
+
+  get initializeResult(): unknown { return this.initialization; }
 
   call<T = unknown>(method: string, params: unknown): Promise<T> {
     if (this.failure) return Promise.reject(this.failure);

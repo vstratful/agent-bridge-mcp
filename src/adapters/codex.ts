@@ -10,6 +10,28 @@ import type { Adapter, Delivery, Discovery, Session } from '../types.js';
 
 const exec = promisify(execFile);
 
+/** Existing app-server endpoints, excluding the published updater control socket. */
+export async function codexEndpoints(config: Config): Promise<string[]> {
+  if (config.codexSocket) return [config.codexSocket];
+  await ownedPath(config.codexSocketDir, 'directory');
+  let paths = (await readdir(config.codexSocketDir))
+    .filter(name => /^[a-f0-9]{64}$/.test(name)).map(name => join(config.codexSocketDir, name));
+  try {
+    const daemonDir = join(config.codexHome, 'app-server-daemon');
+    await ownedPath(daemonDir, 'directory');
+    const link = join(daemonDir, 'daemon-updater.sock');
+    const info = await lstat(link);
+    if (info.isSymbolicLink() && (!process.getuid || info.uid === process.getuid())) {
+      const updater = resolve(daemonDir, await readlink(link));
+      paths = paths.filter(path => path !== updater);
+    }
+  } catch {
+    // Without a recognized control link, retain probe-and-warn behavior.
+    // Never delete sockets or silently ignore RPC failures.
+  }
+  return paths;
+}
+
 export class CodexAdapter implements Adapter {
   readonly provider = 'codex';
   constructor(private config: Config) {}
@@ -18,30 +40,10 @@ export class CodexAdapter implements Adapter {
     const sessions: Session[] = [];
     const warnings: string[] = [];
     let paths: string[];
-    if (this.config.codexSocket) paths = [this.config.codexSocket];
-    else {
-      try {
-        await ownedPath(this.config.codexSocketDir, 'directory');
-        paths = (await readdir(this.config.codexSocketDir))
-          .filter(name => /^[a-f0-9]{64}$/.test(name)).map(name => join(this.config.codexSocketDir, name));
-        // The updater shares this directory, but speaks management IPC rather
-        // than app-server WebSocket RPC. Its published symlink identifies it.
-        try {
-          const daemonDir = join(this.config.codexHome, 'app-server-daemon');
-          await ownedPath(daemonDir, 'directory');
-          const link = join(daemonDir, 'daemon-updater.sock');
-          const info = await lstat(link);
-          if (info.isSymbolicLink() && (!process.getuid || info.uid === process.getuid())) {
-            const updater = resolve(daemonDir, await readlink(link));
-            paths = paths.filter(path => path !== updater);
-          }
-        } catch {
-          // Without a recognized control link, retain normal probe-and-warn
-          // behavior. Never delete sockets or silently ignore RPC failures.
-        }
-      } catch (error) {
-        return { sessions, warnings: [`Codex discovery: ${errorText(error)}`] };
-      }
+    try {
+      paths = await codexEndpoints(this.config);
+    } catch (error) {
+      return { sessions, warnings: [`Codex discovery: ${errorText(error)}`] };
     }
     // Avoid creating hundreds of connections from a damaged or stale directory.
     if (paths.length > 32) warnings.push('Codex socket discovery capped at 32 endpoints. Set AGENT_BRIDGE_CODEX_SOCKET to select one.');

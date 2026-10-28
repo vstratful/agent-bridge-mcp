@@ -15,7 +15,8 @@
     "check": "tsc --noEmit",
     "test": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('.test-build', { recursive: true, force: true });\" && tsc -p tsconfig.test.json && node --test .test-build/test/*.test.js",
     "dev": "tsx src/cli.ts",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "prepare": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
@@ -27,5 +28,8 @@
     "@types/ws": "8.18.2",
     "tsx": "4.23.15",
     "typescript": "7.0.2"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }

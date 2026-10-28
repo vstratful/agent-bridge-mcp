@@ -7,7 +7,7 @@ import { claudeFrame, sendClaudeFrame } from '../claude-wire.js';
 import { errorText } from '../types.js';
 import type { Adapter, Delivery, Discovery, Session } from '../types.js';
 
-const Descriptor = z.object({
+export const Descriptor = z.object({
   pid: z.number().int().positive(), sessionId: z.string().uuid(),
   cwd: z.string(), name: z.string().optional(), status: z.string().optional(),
   procStart: z.string().optional(), pidDomain: z.string().optional(),
