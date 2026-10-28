@@ -144,8 +144,8 @@ Closing a Codex window does not close its thread right away. The app-server
 keeps a thread loaded until it has had no subscribers and no activity for 30
 minutes ([app-server docs](https://learn.chatgpt.com/docs/app-server#unsubscribe-from-a-loaded-thread)).
 During that window the thread is still listed, and a message sent to it runs a
-full turn with nobody watching. That was verified live on Codex 0.165.0. Under
-the documented rule, that turn counts as activity and restarts the 30 minutes. The bridge cannot tell
+full turn with nobody watching. Both were verified live on Codex 0.165.0: the
+turn counts as activity, and the thread unloaded 30 minutes after it ended. The bridge cannot tell
 whether a window is attached: the protocol exposes no subscriber count. Discovery
 uses `thread/read`, which does not load a thread or extend the window; a test
 thread unloaded 30 minutes after creation despite repeated discovery. A loaded
