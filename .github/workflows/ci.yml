@@ -24,7 +24,9 @@ jobs:
         shell: bash
         run: |
           npm pack --pack-destination "$RUNNER_TEMP"
-          tar -tzf "$RUNNER_TEMP"/agent-bridge-mcp-*.tgz | grep -qx 'package/dist/cli.js' \
+          # tar fails when the named member is absent; piping into grep -q would
+          # SIGPIPE tar under the runner's pipefail.
+          tar -tzf "$RUNNER_TEMP"/agent-bridge-mcp-*.tgz package/dist/cli.js >/dev/null \
             || { echo 'Package is missing dist/cli.js'; exit 1; }
 
   readme-install:
