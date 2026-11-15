@@ -1,26 +1,23 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inferSender, loadConfig } from '../src/config.js';
+import { loadConfig, senderSource } from '../src/config.js';
 
-test('only Claude infers its session; a shared Codex MCP process never infers a thread', () => {
+test('only Claude infers its session, from its parent registration; a shared Codex MCP process never infers a thread', () => {
   const config = loadConfig({ CLAUDE_CODE_SESSION_ID: 'claude-session', CODEX_THREAD_ID: 'codex-session' });
-  assert.equal(inferSender(config, 'claude-code'), 'claude:claude-session');
-  assert.equal(inferSender(config, 'codex-mcp-client'), undefined);
-  assert.equal(inferSender(config, 'unknown-client'), undefined);
-  assert.equal(inferSender(config), undefined);
+  assert.deepEqual(senderSource(config, 'claude-code'), { claudeParent: true });
+  assert.equal(senderSource(config, 'codex-mcp-client'), undefined);
+  assert.equal(senderSource(config, 'unknown-client'), undefined);
+  assert.equal(senderSource(config), undefined);
 });
 
-test('process overrides apply outside shared Codex clients; missing Claude identity never selects the parent', () => {
+test('process overrides apply outside shared Codex clients', () => {
   const override = loadConfig({ AGENT_BRIDGE_SENDER_ID: 'codex:override', CLAUDE_CODE_SESSION_ID: 'claude-session', CODEX_THREAD_ID: 'codex-session' });
-  assert.equal(inferSender(override, 'claude-code'), 'codex:override');
-  assert.equal(inferSender(override, 'codex-mcp-client'), undefined);
-  assert.equal(inferSender(override, 'unknown-client'), 'codex:override');
-  assert.equal(inferSender(loadConfig({ CLAUDE_CODE_SESSION_ID: 'parent' }), 'codex-mcp-client'), undefined);
-  assert.equal(inferSender(loadConfig({ CODEX_THREAD_ID: 'parent' }), 'claude-code'), undefined);
-  assert.equal(inferSender(loadConfig({}), 'claude-code'), undefined);
+  assert.deepEqual(senderSource(override, 'claude-code'), { id: 'codex:override' });
+  assert.equal(senderSource(override, 'codex-mcp-client'), undefined);
+  assert.deepEqual(senderSource(override, 'unknown-client'), { id: 'codex:override' });
 });
 
-test('without an MCP handshake, environment identities require an explicit CLI sender', () => {
+test('environment session IDs never become a sender: Claude keeps one MCP process across /clear', () => {
   assert.equal(loadConfig({ CLAUDE_CODE_SESSION_ID: 'parent', CODEX_THREAD_ID: 'child' }).senderId, undefined);
 });
 

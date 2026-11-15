@@ -12,7 +12,6 @@ export interface Config {
   timeoutMs: number;
   retentionDays: number;
   senderId?: string;
-  claudeSessionId?: string;
   readOnly: boolean;
 }
 
@@ -36,18 +35,23 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     timeoutMs,
     retentionDays,
     senderId: env.AGENT_BRIDGE_SENDER_ID,
-    claudeSessionId: env.CLAUDE_CODE_SESSION_ID,
     readOnly: env.AGENT_BRIDGE_READ_ONLY === '1',
   };
 }
 
-export function inferSender(config: Config, clientName?: string): string | undefined {
+/** A fixed sender ID, or the Claude session registered by the bridge's parent process. */
+export type SenderSource = { id: string } | { claudeParent: true };
+
+export function senderSource(config: Config, clientName?: string): SenderSource | undefined {
   // The Codex daemon owns its MCP children and may share one across threads.
   // Neither its environment nor a process-wide override identifies the caller.
   if (clientName === 'codex-mcp-client') return undefined;
-  if (config.senderId) return config.senderId;
-  // Either client can inherit the other's environment when launched by it.
-  // Match the MCP initialize identity; unknown clients must supply a sender.
-  if (clientName === 'claude-code' && config.claudeSessionId) return `claude:${config.claudeSessionId}`;
+  if (config.senderId) return { id: config.senderId };
+  // Claude Code keeps one MCP child across /clear and resume, so the session ID
+  // in its spawn environment goes stale. Its session registry follows the live
+  // session. Either client can inherit the other's environment when launched by
+  // it, so only the MCP initialize identity selects this; unknown clients must
+  // supply a sender.
+  if (clientName === 'claude-code') return { claudeParent: true };
   return undefined;
 }

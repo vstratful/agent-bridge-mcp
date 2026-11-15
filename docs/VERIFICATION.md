@@ -99,9 +99,14 @@ Example `send_message` arguments (use IDs returned by discovery):
 ```
 
 Use full IDs, especially when retrying a tool call with the same `message_id`.
-After the MCP handshake, the bridge uses `CLAUDE_CODE_SESSION_ID` for a
-`claude-code` client. Unknown clients or missing Claude identity require `sender`
-explicitly. `AGENT_BRIDGE_SENDER_ID` overrides inference outside Codex MCP clients.
+After the MCP handshake, a `claude-code` client's sender is the live Claude
+session registered for the bridge's parent process, read on every call.
+Claude Code keeps one MCP process across `/clear` and resume, so the
+`CLAUDE_CODE_SESSION_ID` it set at spawn goes stale and is never used. Register
+the bridge so Claude Code starts it directly, as in Setup, not through a wrapper
+such as `npx` or a shell script. Unknown clients, wrapped launches, and parents
+without a reachable registration require `sender` explicitly.
+`AGENT_BRIDGE_SENDER_ID` overrides inference outside Codex MCP clients.
 Codex MCP clients always have `inferred_sender: null`: the daemon starts the
 bridge without a thread ID and may share it across threads, so neither
 `CODEX_THREAD_ID` nor a process-wide override identifies the calling thread. Codex clients must pass `sender` to

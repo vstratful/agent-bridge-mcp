@@ -15,6 +15,23 @@ test('ambiguous names require an exact full ID; closed sessions are rejected', (
   assert.throws(() => resolveSession([], codex.id), /No reachable/);
 });
 
+test('a Claude parent sender is the live Claude registration for the current parent PID only', async t => {
+  const f = await fixture(); t.after(f.cleanup);
+  let parent = 4242;
+  const live = { ...claude, pid: 4242 };
+  const bridge = new Bridge({ ...f.config, senderId: undefined }, [], () => parent);
+  assert.equal(bridge.inferSender([live]), undefined);
+  bridge.senderSource = { claudeParent: true };
+  assert.equal(bridge.inferSender([{ ...codex, pid: 4242 }, live]), live.id);
+  // /clear rewrites the same PID's registration with a new session ID.
+  const cleared = { ...live, id: 'claude:00000000-0000-4000-8000-0000000000bb' };
+  assert.equal(bridge.inferSender([cleared]), cleared.id);
+  // An orphaned bridge is reparented; it must not adopt another session.
+  parent = 1;
+  assert.equal(bridge.inferSender([live]), undefined);
+  await assert.rejects(bridge.inbox(), /parent Claude Code process \(PID 1\) has no reachable session registration/);
+});
+
 test('read-only blocks sending before discovery or state writes', async t => {
   const f = await fixture(); t.after(f.cleanup);
   const a = new FixtureAdapter('codex', [codex]);

@@ -3,7 +3,7 @@ import { chmod, unlink } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import type { Server, Socket } from 'node:net';
 import { join } from 'node:path';
-import type { Config } from './config.js';
+import type { Config, SenderSource } from './config.js';
 import { ClaudeFrame, nativeReplyText } from './claude-wire.js';
 import { privateDirectory, pruneStaleReplySockets } from './local-files.js';
 import { Store } from './store.js';
@@ -37,7 +37,30 @@ export class Bridge {
   private closing = false;
   private closeTask?: Promise<void>;
 
-  constructor(readonly config: Config, private adapters: Adapter[]) {}
+  senderSource?: SenderSource;
+
+  constructor(readonly config: Config, private adapters: Adapter[], private parentPid = () => process.ppid) {
+    if (config.senderId) this.senderSource = { id: config.senderId };
+  }
+
+  /** The caller's session ID per call. A parent's session can change under one MCP process (/clear, resume). */
+  inferSender(sessions: Session[]): string | undefined {
+    const source = this.senderSource;
+    if (!source) return undefined;
+    if ('id' in source) return source.id;
+    // Read the parent per call: an orphaned bridge is reparented and must not match a reused PID.
+    const pid = this.parentPid();
+    return sessions.find(session => session.provider === 'claude' && session.pid === pid)?.id;
+  }
+
+  private async caller(missing: string, sessions: () => Promise<Session[]>): Promise<string> {
+    const source = this.senderSource;
+    const id = source && ('id' in source ? source.id : this.inferSender(await sessions()));
+    if (id) return id;
+    throw new Error(this.senderSource
+      ? `${missing} This MCP process could not infer its client session: its parent Claude Code process (PID ${this.parentPid()}) has no reachable session registration.`
+      : `${missing} This MCP process could not infer its client session.`);
+  }
 
   async list(): Promise<Discovery> {
     const results = await Promise.allSettled(this.adapters.map(adapter => adapter.discover()));
@@ -59,8 +82,9 @@ export class Bridge {
     validateText(input.text);
     const id = input.messageId ?? randomUUID();
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new Error('message_id must contain 1-128 letters, digits, underscores or hyphens.');
-    const senderRef = input.sender ?? this.config.senderId;
-    if (!senderRef) throw new Error('Provide sender as a full session ID from list_sessions. This MCP process could not infer its client session.');
+    let discovered: Session[] | undefined;
+    const sessions = async () => discovered ??= (await this.list()).sessions;
+    const senderRef = input.sender ?? await this.caller('Provide sender as a full session ID from list_sessions.', sessions);
     const store = await this.getStore();
     const previous = store.get(id);
     if (previous) {
@@ -70,16 +94,14 @@ export class Bridge {
       }
       return previous;
     }
-    const { sessions } = await this.list();
-    const sender = resolveSession(sessions, senderRef);
-    const recipient = resolveSession(sessions, input.to);
+    const sender = resolveSession(await sessions(), senderRef);
+    const recipient = resolveSession(await sessions(), input.to);
     if (sender.id === recipient.id) throw new Error('Sending to the same session is disabled.');
     return this.deliver({ id, sender: sender.id, recipient: recipient.id, text: input.text, createdAt: new Date().toISOString(), state: 'pending', detail: 'Prepared by bridge.' }, recipient, sender);
   }
 
   async inbox(recipient?: string, limit?: number, after?: string): Promise<Message[]> {
-    const id = recipient ?? this.config.senderId;
-    if (!id) throw new Error('Provide the recipient session ID.');
+    const id = recipient ?? await this.caller('Provide the recipient session ID.', async () => (await this.list()).sessions);
     return (await this.getStore()).inbox(id, limit, after);
   }
 
