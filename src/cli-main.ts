@@ -50,8 +50,14 @@ export async function main(): Promise<void> {
       await bridge.close();
       await server.close();
     };
-    process.once('SIGINT', () => { void close().finally(() => process.exit()); });
-    process.once('SIGTERM', () => { void close().finally(() => process.exit()); });
+    const shutdown = () => { void close().finally(() => process.exit()); };
+    process.once('SIGINT', shutdown);
+    process.once('SIGTERM', shutdown);
+    // The SDK's stdio transport ignores end of input, and an open reply socket
+    // would keep this process alive after its client has gone (e.g. killed
+    // without signalling its children).
+    process.stdin.once('end', shutdown);
+    process.stdin.once('close', shutdown);
     server.server.onclose = () => { void bridge.close(); };
     await server.connect(new StdioServerTransport());
     return;
