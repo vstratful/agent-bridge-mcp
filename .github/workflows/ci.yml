@@ -23,18 +23,30 @@ jobs:
       - name: Verify packaged CLI
         shell: bash
         run: |
-          npm pack --dry-run --json > "$RUNNER_TEMP/agent-bridge-pack.json"
-          node --input-type=module - "$RUNNER_TEMP/agent-bridge-pack.json" <<'JS'
-          import { readFileSync } from 'node:fs';
-          const [pack] = JSON.parse(readFileSync(process.argv[2], 'utf8'));
-          if (!pack.files.some(file => file.path === 'dist/cli.js')) {
-            throw new Error('Package is missing dist/cli.js');
-          }
-          JS
-      - name: Install from git the way the README does
+          npm pack --pack-destination "$RUNNER_TEMP"
+          tar -tzf "$RUNNER_TEMP"/agent-bridge-mcp-*.tgz | grep -qx 'package/dist/cli.js' \
+            || { echo 'Package is missing dist/cli.js'; exit 1; }
+
+  readme-install:
+    name: Install from git the way the README does (npm ${{ matrix.npm }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        npm: [bundled, '12']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Use npm ${{ matrix.npm }}
+        if: matrix.npm != 'bundled'
+        run: npm install -g npm@${{ matrix.npm }}
+      - name: Pack from git and install globally
         shell: bash
         run: |
+          npm --version
           cd "$RUNNER_TEMP"
-          npm pack "git+file://$GITHUB_WORKSPACE#$GITHUB_SHA"
-          npm install -g ./agent-bridge-mcp-*.tgz --prefix "$RUNNER_TEMP/prefix"
+          npm pack --allow-git=all "git+file://$GITHUB_WORKSPACE#$GITHUB_SHA"
+          npm install -g --ignore-scripts ./agent-bridge-mcp-*.tgz --prefix "$RUNNER_TEMP/prefix"
           "$RUNNER_TEMP/prefix/bin/agent-bridge-mcp" --help

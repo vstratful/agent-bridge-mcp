@@ -17,12 +17,15 @@ client updates. Run `agent-bridge-mcp doctor` first when something stops working
 Install from GitHub; no account or SSH key is needed.
 
 ```sh
-npm pack git+https://github.com/vstratful/agent-bridge-mcp.git
-npm install -g ./agent-bridge-mcp-*.tgz && rm ./agent-bridge-mcp-*.tgz
+npm pack --allow-git=all git+https://github.com/vstratful/agent-bridge-mcp.git
+npm install -g --ignore-scripts ./agent-bridge-mcp-*.tgz && rm ./agent-bridge-mcp-*.tgz
 ```
 
 Don't use `npm install -g git+https://…` directly: npm's global git install fails to
 build the package (`tsc: not found`). Packing first builds it in a normal clone.
+npm 12 refuses git sources unless `--allow-git=all` is passed. The tarball already
+contains the built CLI, so `--ignore-scripts` skips the build script that npm would
+otherwise flag as blocked.
 
 Register in both clients using absolute paths:
 
