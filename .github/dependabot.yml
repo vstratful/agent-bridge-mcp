@@ -1,0 +1,45 @@
+# dependabot.yml
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    target-branch: "staging"
+    assignees:
+      - "vstratful"
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "deps"
+    ignore:
+      # @types/node major follows the supported Node runtime (engines: node >= 24)
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+    groups:
+      patch-minor:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+          - "minor"
+      major:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+    cooldown:
+      default-days: 7
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    target-branch: "staging"
+    assignees:
+      - "vstratful"
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "deps"
+    cooldown:
+      default-days: 7

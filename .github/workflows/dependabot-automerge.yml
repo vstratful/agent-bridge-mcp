@@ -1,0 +1,63 @@
+name: Auto-merge Dependabot updates
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  auto-merge:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install pnpm (version from packageManager)
+        run: npm install -g "$(node -p "require('./package.json').packageManager")"
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version-file: 'package.json'
+          cache: 'pnpm'
+
+      - name: Regenerate lockfile if drifted
+        run: |
+          pnpm install --no-frozen-lockfile --ignore-scripts
+          if ! git diff --quiet pnpm-lock.yaml; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add pnpm-lock.yaml
+            git commit -m "chore: sync pnpm-lock.yaml after dependabot bump"
+            git push
+          fi
+
+      - name: Verify frozen install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge patch & minor
+        if: |
+          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+          steps.meta.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr merge ${{ github.event.pull_request.number }} --rebase
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create staging->main PR
+        if: |
+          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+          steps.meta.outputs.update-type == 'version-update:semver-minor'
+        run: |
+          gh pr create --title "chore: merge staging (auto-updates) into main" --body "This PR was automatically created to merge automatically-updated dependencies from staging into main. Please review and merge manually." --base main --head staging || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

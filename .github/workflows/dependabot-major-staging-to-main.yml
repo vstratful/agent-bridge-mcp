@@ -1,0 +1,31 @@
+name: Auto-create PR for Dependabot major updates
+on:
+  pull_request_target:
+    types: [closed]
+    branches:
+      - staging
+
+jobs:
+  create-staging-to-main:
+    if: github.event.pull_request.merged == true && github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create staging->main PR
+        if: steps.meta.outputs.update-type == 'version-update:semver-major'
+        run: |
+          gh pr create --title "chore: merge staging (auto-major updates) into main" --body "This PR was automatically created to merge major dependencies updates from staging into main. Please review and merge manually." --base main --head staging
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

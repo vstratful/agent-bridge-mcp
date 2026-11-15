@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Explicit live test. Never run by npm test. Requires approval of this exact send.
+// Explicit live test. Never run by pnpm test. Requires approval of this exact send.
 import { randomUUID } from 'node:crypto';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';

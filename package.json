@@ -11,13 +11,14 @@
   "engines": {
     "node": ">=24"
   },
+  "packageManager": "pnpm@12.16.1",
   "scripts": {
     "build": "tsc",
     "check": "tsc --noEmit",
     "test": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('.test-build', { recursive: true, force: true });\" && tsc -p tsconfig.test.json && node --test .test-build/test/*.test.js",
     "dev": "tsx src/cli.ts",
     "start": "node dist/cli.js",
-    "prepare": "npm run build"
+    "prepare": "tsc"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",

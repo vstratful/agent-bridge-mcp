@@ -35,13 +35,14 @@ failures. Reconnect MCP processes after rebuilding before repeating live checks.
 
 ## Build and test
 
-Requires Node.js 24+, npm, and the existing `codex` and `claude` installations.
+Requires Node.js 24+, pnpm (version pinned by `packageManager`), and the existing
+`codex` and `claude` installations.
 
 ```sh
-npm ci --ignore-scripts
-npm run check
-npm test
-npm run build
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm run check
+pnpm test
+pnpm run build
 node dist/cli.js list --read-only
 ```
 
